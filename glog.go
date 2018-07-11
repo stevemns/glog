@@ -398,6 +398,7 @@ type flushSyncWriter interface {
 func init() {
 	flag.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
+	flag.BoolVar(&logging.noHeader, "noheader", false, "do not use a header")
 	flag.Var(&logging.verbosity, "v", "log level for V logs")
 	flag.Var(&logging.stderrThreshold, "stderrthreshold", "logs at or above this threshold go to stderr")
 	flag.Var(&logging.vmodule, "vmodule", "comma-separated list of pattern=N settings for file-filtered logging")
@@ -422,6 +423,7 @@ type loggingT struct {
 	// compatibility. TODO: does this matter enough to fix? Seems unlikely.
 	toStderr     bool // The -logtostderr flag.
 	alsoToStderr bool // The -alsologtostderr flag.
+	noHeader     bool // The -noheader flag
 
 	// Level flag. Handled atomically.
 	stderrThreshold severity // The -stderrthreshold flag.
@@ -628,6 +630,15 @@ func (buf *buffer) someDigits(i, d int) int {
 }
 
 func (l *loggingT) println(s severity, args ...interface{}) {
+	if l.noHeader {
+		buf := l.getBuffer()
+		file := ""
+		line := 1
+		fmt.Fprintln(buf, args...)
+		l.output(s, buf, file, line, false)
+		return
+	}
+
 	buf, file, line := l.header(s, 0)
 	fmt.Fprintln(buf, args...)
 	l.output(s, buf, file, line, false)
@@ -638,6 +649,18 @@ func (l *loggingT) print(s severity, args ...interface{}) {
 }
 
 func (l *loggingT) printDepth(s severity, depth int, args ...interface{}) {
+	if l.noHeader {
+		buf := l.getBuffer()
+		file := ""
+		line := 0
+		fmt.Fprint(buf, args...)
+		if buf.Bytes()[buf.Len()-1] != '\n' {
+			buf.WriteByte('\n')
+		}
+		l.output(s, buf, file, line, false)
+		return
+	}
+
 	buf, file, line := l.header(s, depth)
 	fmt.Fprint(buf, args...)
 	if buf.Bytes()[buf.Len()-1] != '\n' {
@@ -647,6 +670,18 @@ func (l *loggingT) printDepth(s severity, depth int, args ...interface{}) {
 }
 
 func (l *loggingT) printf(s severity, format string, args ...interface{}) {
+	if l.noHeader {
+		buf := l.getBuffer()
+		file := ""
+		line := 0
+		fmt.Fprintf(buf, format, args...)
+		if buf.Bytes()[buf.Len()-1] != '\n' {
+			buf.WriteByte('\n')
+		}
+		l.output(s, buf, file, line, false)
+		return
+	}
+
 	buf, file, line := l.header(s, 0)
 	fmt.Fprintf(buf, format, args...)
 	if buf.Bytes()[buf.Len()-1] != '\n' {
