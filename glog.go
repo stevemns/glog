@@ -395,6 +395,16 @@ type flushSyncWriter interface {
 	io.Writer
 }
 
+//
+// Configure the logging based on the arguments supplied in the string slice
+//
+func ConfigureLogging(args []string) {
+	origArgs := os.Args
+	os.Args = append([]string{os.Args[0]}, args...)
+	flag.Parse()
+	os.Args = origArgs
+}
+
 func init() {
 	flag.BoolVar(&logging.toStderr, "logtostderr", false, "log to standard error instead of files")
 	flag.BoolVar(&logging.alsoToStderr, "alsologtostderr", false, "log to standard error as well as files")
